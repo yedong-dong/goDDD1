@@ -40,3 +40,32 @@ func (Store) TableName() string {
 func (s *Store) BeforeCreate(scope *gorm.Scope) error {
 	return nil
 }
+
+type StoreDTO struct {
+	ID        uint      `json:"id"`
+	Name      string    `json:"name"`
+	Price     int64     `json:"price"`
+	Stock     int64     `json:"stock"`
+	StoreType StoreType `json:"store_type"`
+	Status    int       `json:"status"`
+	CostType  CostType  `json:"cost_type"`
+}
+
+func (s *Store) ToStoreDTO() *StoreDTO {
+	return &StoreDTO{
+		ID:        s.ID,
+		Name:      s.Name,
+		Price:     s.Price,
+		Stock:     s.Stock,
+		StoreType: s.StoreType,
+		Status:    s.Status,
+		CostType:  s.CostType,
+	}
+}
+
+func StoreToDTO(store *Store) *StoreDTO {
+	if store == nil {
+		return nil
+	}
+	return store.ToStoreDTO()
+}

@@ -18,9 +18,13 @@ func main() {
 		log.Println("未找到.env文件，将使用默认配置")
 	}
 
-	// 初始化数据库连接
+	// 初始化数据库
 	db := config.InitDB()
 	defer config.CloseDB()
+
+	// 初始化Redis
+	config.InitRedis()
+	defer config.CloseRedis()
 
 	// 自动迁移数据库表结构
 	db.AutoMigrate(&models.User{}, &models.Store{}, &models.Backpack{}, &models.UserCurrencyFlow{})

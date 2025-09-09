@@ -15,6 +15,7 @@ type UserService interface {
 	UpdateUser(user *models.User) error
 	DeleteUser(id uint) error
 	GetAllUsers(isDeleted string) ([]*models.User, error)
+	GetUserByEmail(email string) (*models.User, error)
 }
 
 // userService 用户服务实现
@@ -23,6 +24,16 @@ type userService struct{}
 // NewUserService 创建用户服务实例
 func NewUserService() UserService {
 	return &userService{}
+}
+
+// GetUserByEmail 根据邮箱获取用户
+func (s *userService) GetUserByEmail(email string) (*models.User, error) {
+	var user models.User
+	result := config.Database.Where("email = ?", email).First(&user)
+	if result.Error != nil {
+		return nil, result.Error
+	}
+	return &user, nil
 }
 
 // CreateUser 创建用户

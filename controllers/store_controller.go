@@ -169,10 +169,11 @@ func (c *StoreController) UpdateStore(ctx *gin.Context) {
 		return
 	}
 
+	updateStoreDTO := updatedStore.ToStoreDTO()
 	// 返回成功响应
 	ctx.JSON(http.StatusOK, gin.H{
 		"message": "商店更新成功",
-		"data":    updatedStore,
+		"data":    updateStoreDTO,
 	})
 }
 
@@ -194,9 +195,11 @@ func (c *StoreController) GetStoreByID(ctx *gin.Context) {
 		return
 	}
 
+	storeDTO := store.ToStoreDTO()
+
 	ctx.JSON(http.StatusOK, gin.H{
 		"message": "获取成功",
-		"store":   store,
+		"store":   storeDTO,
 	})
 }
 

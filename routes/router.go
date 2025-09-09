@@ -2,6 +2,7 @@ package routes
 
 import (
 	"goDDD1/controllers"
+	"goDDD1/middleware"
 
 	"github.com/gin-gonic/gin"
 )
@@ -17,12 +18,23 @@ func SetupRouter() *gin.Engine {
 	userWalletController := controllers.NewUserWalletController()
 	storeController := controllers.NewStoreController()
 	userCurrencyFlowController := controllers.NewUserCurrencyFlowController()
+	authorController := controllers.NewAuthorizationController()
+
+	public := r.Group("/api")
+	{
+		author := public.Group("/author")
+		{
+			author.POST("/register", authorController.Register) // 注册用户
+			author.POST("/login", authorController.Login)       // 登录用户
+		}
+	}
 
 	// API路由组
-	api := r.Group("/api")
+	protected := r.Group("/api")
+	protected.Use(middleware.JWTAuthMiddleware())
 	{
 		// 用户相关路由
-		users := api.Group("/users")
+		users := protected.Group("/users")
 		{
 			users.POST("/register", userController.Register) // 注册用户
 			users.GET("/", userController.GetUserByUID)      // 获取用户信息 ?uid=1
@@ -31,27 +43,27 @@ func SetupRouter() *gin.Engine {
 		}
 
 		// 用户钱包相关路由
-		wallets := api.Group("/wallets")
+		wallets := protected.Group("/wallets")
 		{
 			wallets.GET("/user", userWalletController.GetUserWallets)
 			wallets.GET("/user/type", userWalletController.GetWalletByType)        // 获取指定类型钱包 ?user_id=1&type=coin
 			wallets.POST("/user/update", userWalletController.UpdateWalletBalance) // 更新钱包余额
 		}
 
-		store := api.Group("/store")
+		store := protected.Group("/store")
 		{
 			store.POST("/create", storeController.CreateStore)
-			store.GET("/get/:id", storeController.GetStoreByID)
+			store.GET("/get", storeController.GetStoreByID)
 			store.POST("/update", storeController.UpdateStore)
 			store.POST("/buy", storeController.BuyGoods)
 		}
 
-		backpack := api.Group("/backpack")
+		backpack := protected.Group("/backpack")
 		{
 			backpack.GET("/get", backpackController.GetBackpack)
 		}
 
-		userCurrencyFlow := api.Group("/userCurrencyFlow")
+		userCurrencyFlow := protected.Group("/userCurrencyFlow")
 		{
 			userCurrencyFlow.GET("/get", userCurrencyFlowController.GetUserCurrencyFlow)
 		}
