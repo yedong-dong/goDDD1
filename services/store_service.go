@@ -164,7 +164,6 @@ func (s *storeService) BuyGoods(userID uint, storeID uint, num uint) error {
 		CostType: string(store.CostType),
 		Price:    -store.Price * int64(num),
 	}); err != nil {
-		tx.Rollback()
 		return err
 	}
 

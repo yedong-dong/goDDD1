@@ -47,6 +47,13 @@ func (c *StoreController) CreateStore(ctx *gin.Context) {
 		})
 		return
 	}
+	if store.Tag != models.TagNormal && store.Tag != models.TagClothes && store.Tag != models.TagWeapon && store.Tag != models.TagArtifact && store.Tag != models.TagConsumable {
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"error":   "JSON数据格式错误",
+			"message": "Tag类型错误",
+		})
+		return
+	}
 
 	if err := c.storeService.CreateStore(&store); err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{

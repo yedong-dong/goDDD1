@@ -24,8 +24,9 @@ func SetupRouter() *gin.Engine {
 	{
 		author := public.Group("/author")
 		{
-			author.POST("/register", authorController.Register) // 注册用户
-			author.POST("/login", authorController.Login)       // 登录用户
+			author.POST("/register", authorController.Register)              // 注册用户
+			author.POST("/login", authorController.Login)                    // 登录用户
+			author.POST("/send_code", authorController.SendVerificationCode) // 发送验证码
 		}
 	}
 

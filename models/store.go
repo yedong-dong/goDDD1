@@ -20,6 +20,16 @@ const (
 	StoreTypeGift StoreType = "gift"
 )
 
+type Tag string
+
+const (
+	TagNormal     Tag = "Normal"
+	TagClothes    Tag = "Clothes"
+	TagWeapon     Tag = "Weapon"
+	TagArtifact   Tag = "Artifact"
+	TagConsumable Tag = "Consumable"
+)
+
 type Store struct {
 	ID        uint       `gorm:"primary_key" json:"id"`
 	Name      string     `gorm:"size:50;not null;unique" json:"name"`
@@ -28,6 +38,7 @@ type Store struct {
 	StoreType StoreType  `gorm:"size:20;not null" json:"store_type"`
 	Status    int        `gorm:"not null;default:1" json:"status"`
 	CostType  CostType   `gorm:"size:20;not null" json:"cost_type"`
+	Tag       Tag        `gorm:"size:20;not null;default:normal" json:"tags"`
 	CreatedAt time.Time  `json:"created_at"`
 	UpdatedAt time.Time  `json:"updated_at"`
 	DeletedAt *time.Time `sql:"index" json:"-"`
@@ -49,6 +60,7 @@ type StoreDTO struct {
 	StoreType StoreType `json:"store_type"`
 	Status    int       `json:"status"`
 	CostType  CostType  `json:"cost_type"`
+	Tag       Tag       `json:"tag"`
 }
 
 func (s *Store) ToStoreDTO() *StoreDTO {
