@@ -72,6 +72,7 @@ func (s *Store) ToStoreDTO() *StoreDTO {
 		StoreType: s.StoreType,
 		Status:    s.Status,
 		CostType:  s.CostType,
+		Tag:       s.Tag, // 添加这一行
 	}
 }
 

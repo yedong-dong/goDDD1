@@ -57,6 +57,8 @@ func SetupRouter() *gin.Engine {
 			store.GET("/get", storeController.GetStoreByID)
 			store.POST("/update", storeController.UpdateStore)
 			store.POST("/buy", storeController.BuyGoods)
+			store.GET("/tag", storeController.GetStoreByTag)
+			store.GET("/tag/page", storeController.GetStoreByTagPage)
 		}
 
 		backpack := protected.Group("/backpack")

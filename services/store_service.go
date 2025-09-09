@@ -11,6 +11,8 @@ type StoreService interface {
 	GetStoreByID(id string) (*models.Store, error)
 	UpdateStore(store *models.Store) (*models.Store, error) // 修改方法签名
 	BuyGoods(userID uint, storeID uint, num uint) error
+	GetStoreByTag(tag models.Tag) ([]*models.StoreDTO, error)
+	GetStoreByTagPage(tag models.Tag, page, pageSize int) ([]*models.StoreDTO, int64, error)
 }
 
 type storeService struct {
@@ -18,6 +20,22 @@ type storeService struct {
 
 func NewStoreService() StoreService {
 	return &storeService{}
+}
+
+func (s *storeService) GetStoreByTag(tag models.Tag) ([]*models.StoreDTO, error) {
+	var stores []*models.Store
+	result := config.Database.Where("tag = ?", tag).Find(&stores)
+	if result.Error != nil {
+		return nil, result.Error
+	}
+
+	// 转换为 DTO
+	storeDTOs := make([]*models.StoreDTO, len(stores))
+	for i, store := range stores {
+		storeDTOs[i] = store.ToStoreDTO()
+	}
+
+	return storeDTOs, nil
 }
 
 func (s *storeService) CreateStore(store *models.Store) error {
@@ -35,7 +53,6 @@ func (s *storeService) CreateStore(store *models.Store) error {
 
 	return tx.Commit().Error
 }
-
 func (s *storeService) GetStoreByID(id string) (*models.Store, error) {
 	var store models.Store
 	result := config.Database.Raw("Select * from stores where id = ?", id).Scan(&store)
@@ -78,7 +95,6 @@ func (s *storeService) UpdateStore(store *models.Store) (*models.Store, error) {
 
 	return store, nil
 }
-
 func (s *storeService) BuyGoods(userID uint, storeID uint, num uint) error {
 	//1、开始事务
 	//2、检查是否有该用户
@@ -173,5 +189,38 @@ func (s *storeService) BuyGoods(userID uint, storeID uint, num uint) error {
 		return err
 	}
 	return nil
+
+}
+
+func (s *storeService) GetStoreByTagPage(tag models.Tag, page, pageSize int) ([]*models.StoreDTO, int64, error) {
+	if page <= 0 {
+		page = 1
+	}
+	if pageSize <= 0 {
+		pageSize = 10
+	} else if pageSize > 100 {
+		pageSize = 100
+	}
+
+	offset := (page - 1) * pageSize
+
+	//查询总数
+	var total int64
+	if err := config.Database.Model(&models.Store{}).Where("tag = ?", tag).Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	var stores []*models.Store
+	result := config.Database.Where("tag = ?", tag).Offset(offset).Limit(pageSize).Find(&stores)
+	if result.Error != nil {
+		return nil, 0, result.Error
+	}
+	// 转换为 DTO
+	storeDTOs := make([]*models.StoreDTO, len(stores))
+	for i, store := range stores {
+		storeDTOs[i] = store.ToStoreDTO()
+	}
+
+	return storeDTOs, total, nil
 
 }

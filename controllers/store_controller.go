@@ -249,3 +249,66 @@ func (c *StoreController) BuyGoods(ctx *gin.Context) {
 	})
 
 }
+
+func (c *StoreController) GetStoreByTag(ctx *gin.Context) {
+	tag := ctx.Query("tag")
+	if tag == "" {
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"error": "无效tag",
+			"msg":   "tag不能为空",
+		})
+		return
+	}
+	stores, err := c.storeService.GetStoreByTag(models.Tag(tag))
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{
+			"error": "获取失败",
+			"msg":   err.Error(),
+		})
+		return
+	}
+	ctx.JSON(http.StatusOK, gin.H{
+		"message": "获取成功",
+		"stores":  stores,
+	})
+}
+
+func (c *StoreController) GetStoreByTagPage(ctx *gin.Context) {
+	tag := ctx.Query("tag")
+	if tag == "" {
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"error": "无效tag",
+			"msg":   "tag不能为空",
+		})
+		return
+	}
+	page, err := strconv.Atoi(ctx.Query("page"))
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"error": "无效page",
+			"msg":   "page必须是整数",
+		})
+		return
+	}
+	pageSize, err := strconv.Atoi(ctx.Query("page_size"))
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"error": "无效page_size",
+			"msg":   "page_size必须是整数",
+		})
+		return
+	}
+	stores, total, err := c.storeService.GetStoreByTagPage(models.Tag(tag), page, pageSize)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{
+			"error": "获取失败",
+			"msg":   err.Error(),
+		})
+		return
+	}
+	ctx.JSON(http.StatusOK, gin.H{
+		"message": "获取成功",
+		"stores":  stores,
+		"total":   total,
+	})
+}
