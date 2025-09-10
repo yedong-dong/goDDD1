@@ -2,12 +2,13 @@ package config
 
 import (
 	"fmt"
-	"github.com/jinzhu/gorm"
-	_ "github.com/go-sql-driver/mysql"
-	"github.com/joho/godotenv"
 	"goDDD1/models"
 	"log"
 	"os"
+
+	_ "github.com/go-sql-driver/mysql"
+	"github.com/jinzhu/gorm"
+	"github.com/joho/godotenv"
 )
 
 // DBConfig 数据库配置结构体

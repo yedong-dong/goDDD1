@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"fmt"
 	"net/http"
 	"strings"
 
@@ -34,18 +35,20 @@ func JWTAuthMiddleware() gin.HandlerFunc {
 			return
 		}
 
-		// 验证token
+		//尝试从redis里验证token
 		tokenString := parts[1]
-		if !utils.ValidateToken(tokenString) {
-			c.JSON(http.StatusUnauthorized, gin.H{
-				"error": "无效的token",
-				"code":  401,
-			})
-			c.Abort()
+		userInfo, err := utils.GetUserInfoFromCacheRedis(tokenString)
+		if err == nil {
+			// 从缓存中获取到用户信息，直接返回
+			c.Set("uid", userInfo.UID)
+			c.Set("email", userInfo.Email)
+			c.Set("token", tokenString)
+
+			c.Next()
 			return
 		}
 
-		// 获取用户信息
+		//尝试服务端解析token获取用户信息
 		uid, email, err := utils.GetUserInfoFromToken(tokenString)
 		if err != nil {
 			c.JSON(http.StatusUnauthorized, gin.H{
@@ -55,6 +58,10 @@ func JWTAuthMiddleware() gin.HandlerFunc {
 			c.Abort()
 			return
 		}
+
+		// 缓存用户信息
+		utils.CacheUserInfo(tokenString, uid, email)
+		fmt.Println("缓存用户信息", tokenString, uid, email)
 
 		// 将用户信息存储到上下文中
 		c.Set("uid", uid)
