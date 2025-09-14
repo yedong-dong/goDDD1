@@ -78,23 +78,20 @@ func (c *UserController) GetUserByUID(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, gin.H{"user": user})
 }
 
-// GetUserByID 根据ID获取用户
 func (c *UserController) GetAllUsers(ctx *gin.Context) {
-	isDeleted := ctx.Query("is_deleted")
-	if isDeleted == "" {
-		isDeleted = "0"
-	} else if isDeleted != "0" && isDeleted != "1" {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "is_deleted参数错误"})
-		return
-	}
-
-	users, err := c.userService.GetAllUsers(isDeleted)
+	users, err := c.userService.GetAllUsers()
 	if err != nil {
 		ctx.JSON(http.StatusNotFound, gin.H{"error": "用户不存在"})
 		return
 	}
 
-	ctx.JSON(http.StatusOK, gin.H{"users": users})
+	ctx.JSON(http.StatusOK, gin.H{
+		"code": 20000,
+		"data": gin.H{
+			"users":   users,
+			"message": "success",
+		},
+	})
 }
 
 // UpdateUser 更新用户信息
@@ -149,8 +146,10 @@ func (c *UserController) UpdateUser(ctx *gin.Context) {
 	if requestData.Password != "" {
 		user.Password = requestData.Password
 	}
-	if requestData.IsDeleted == "1" {
-		user.IsDeleted = "1"
+	if requestData.IsDeleted != "" {
+		user.IsDeleted = requestData.IsDeleted
+	} else {
+		user.IsDeleted = "0"
 	}
 
 	// 5. 业务逻辑：调用服务层更新用户信息到数据库
@@ -164,11 +163,10 @@ func (c *UserController) UpdateUser(ctx *gin.Context) {
 
 	// 6. 成功响应：返回更新后的用户信息
 	ctx.JSON(http.StatusOK, gin.H{
-		"message": "用户信息更新成功",
+		"code": "20000",
 		"data": gin.H{
-			"uid":      user.UID,
-			"username": user.Username,
-			"email":    user.Email,
+			"message": "success",
+			"user":    user,
 		},
 	})
 }

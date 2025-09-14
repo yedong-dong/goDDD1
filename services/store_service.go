@@ -13,6 +13,7 @@ type StoreService interface {
 	BuyGoods(userID uint, storeID uint, num uint) error
 	GetStoreByTag(tag models.Tag) ([]*models.StoreDTO, error)
 	GetStoreByTagPage(tag models.Tag, page, pageSize int) ([]*models.StoreDTO, int64, error)
+	GetAllStores() ([]*models.StoreDTO, error)
 }
 
 type storeService struct {
@@ -223,4 +224,20 @@ func (s *storeService) GetStoreByTagPage(tag models.Tag, page, pageSize int) ([]
 
 	return storeDTOs, total, nil
 
+}
+
+func (s *storeService) GetAllStores() ([]*models.StoreDTO, error) {
+	var stores []*models.Store
+	result := config.Database.Find(&stores)
+	if result.Error != nil {
+		return nil, result.Error
+	}
+
+	// 转换为 DTO
+	storeDTOs := make([]*models.StoreDTO, len(stores))
+	for i, store := range stores {
+		storeDTOs[i] = store.ToStoreDTO()
+	}
+
+	return storeDTOs, nil
 }

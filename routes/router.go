@@ -19,14 +19,21 @@ func SetupRouter() *gin.Engine {
 	storeController := controllers.NewStoreController()
 	userCurrencyFlowController := controllers.NewUserCurrencyFlowController()
 	authorController := controllers.NewAuthorizationController()
+	vueController := controllers.NewVueController()
 
 	public := r.Group("/api")
 	{
+		test := public.Group("/test")
+		{
+			test.GET("/list", vueController.Table)
+		}
+
 		author := public.Group("/author")
 		{
 			author.POST("/register", authorController.Register)              // 注册用户
 			author.POST("/login", authorController.Login)                    // 登录用户
 			author.POST("/send_code", authorController.SendVerificationCode) // 发送验证码
+			author.GET("/info", vueController.Info)
 		}
 	}
 
@@ -59,6 +66,7 @@ func SetupRouter() *gin.Engine {
 			store.POST("/buy", storeController.BuyGoods)
 			store.GET("/tag", storeController.GetStoreByTag)
 			store.GET("/tag/page", storeController.GetStoreByTagPage)
+			store.GET("/all", storeController.GetAllStores)
 		}
 
 		backpack := protected.Group("/backpack")

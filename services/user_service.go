@@ -14,7 +14,8 @@ type UserService interface {
 	GetUserByUsername(username string) (*models.User, error)
 	UpdateUser(user *models.User) error
 	DeleteUser(id uint) error
-	GetAllUsers(isDeleted string) ([]*models.User, error)
+	GetAllUsersByIsDeleted(isDeleted string) ([]*models.User, error)
+	GetAllUsers() ([]*models.User, error)
 	GetUserByEmail(email string) (*models.User, error)
 }
 
@@ -80,9 +81,18 @@ func (s *userService) GetUserByUID(uid uint) (*models.User, error) {
 	return &user, nil
 }
 
-func (s *userService) GetAllUsers(isDeleted string) ([]*models.User, error) {
+func (s *userService) GetAllUsersByIsDeleted(isDeleted string) ([]*models.User, error) {
 	var users []*models.User
 	result := config.Database.Where("is_deleted = ?", isDeleted).Find(&users)
+	if result.Error != nil {
+		return nil, result.Error
+	}
+	return users, nil
+}
+
+func (s *userService) GetAllUsers() ([]*models.User, error) {
+	var users []*models.User
+	result := config.Database.Find(&users)
 	if result.Error != nil {
 		return nil, result.Error
 	}

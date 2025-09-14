@@ -93,8 +93,11 @@ func (c *AuthorizationController) SendVerificationCode(ctx *gin.Context) {
 	}
 
 	ctx.JSON(http.StatusOK, gin.H{
-		"message": "验证码已发送，请查收邮件",
-		"ttl":     300, // 5分钟有效期
+		"code": "20000",
+		"data": gin.H{
+			"message": "验证码已发送，请查收邮件",
+			"ttl":     300, // 5分钟有效期
+		},
 	})
 }
 
@@ -174,9 +177,12 @@ func (c *AuthorizationController) Register(ctx *gin.Context) {
 		Email:    user.Email,
 	}
 
-	ctx.JSON(http.StatusCreated, gin.H{
-		"message": "注册成功",
-		"user":    userResp,
+	ctx.JSON(http.StatusOK, gin.H{
+		"code": 20000,
+		"data": gin.H{
+			"message": "注册成功",
+			"user":    userResp,
+		},
 	})
 }
 
@@ -219,19 +225,20 @@ func (c *AuthorizationController) Login(ctx *gin.Context) {
 		return
 	}
 
-	// 返回成功响应（不包含密码）
-	userResp := UserResponse{
-		ID:       user.ID,
-		UID:      user.UID,
-		Username: user.Username,
-		Email:    user.Email,
-	}
+	// // 返回成功响应（不包含密码）
+	// userResp := UserResponse{
+	// 	ID:       user.ID,
+	// 	UID:      user.UID,
+	// 	Username: user.Username,
+	// 	Email:    user.Email,
+	// }
 
 	ctx.JSON(http.StatusOK, gin.H{
+		"code":    20000,
 		"message": "登录成功",
-		"user":    userResp,
-		"token":   "Bearer " + generateToken(user), // 这里可以生成JWT token
-		// "token": "1", // 这里可以生成JWT token
+		"data": gin.H{
+			"token": "Bearer " + generateToken(user),
+		},
 	})
 }
 

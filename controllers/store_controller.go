@@ -312,3 +312,23 @@ func (c *StoreController) GetStoreByTagPage(ctx *gin.Context) {
 		"total":   total,
 	})
 }
+
+func (c *StoreController) GetAllStores(ctx *gin.Context) {
+	stores, err := c.storeService.GetAllStores()
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{
+			"error":   "获取商店列表失败",
+			"message": err.Error(),
+		})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{
+		"code": 20000,
+		"data": gin.H{
+			"stores": stores,
+			"total":  len(stores),
+		},
+		"message": "获取商店列表成功",
+	})
+}
