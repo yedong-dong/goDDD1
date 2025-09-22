@@ -27,7 +27,13 @@ func main() {
 	defer config.CloseRedis()
 
 	// 自动迁移数据库表结构
-	db.AutoMigrate(&models.User{}, &models.Store{}, &models.Backpack{}, &models.UserCurrencyFlow{})
+	db.AutoMigrate(&models.User{},
+		&models.Store{},
+		&models.Backpack{},
+		&models.UserCurrencyFlow{},
+		&models.LevelConfig{},
+		&models.LevelHistory{},
+	)
 
 	// 设置服务器端口
 	port := os.Getenv("SERVER_PORT")

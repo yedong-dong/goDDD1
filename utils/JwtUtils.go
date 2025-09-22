@@ -17,7 +17,7 @@ type JWTClaims struct {
 // JWT 配置
 var (
 	JWTSecret           = []byte("your-secret-key-change-in-production") // 在生产环境中应该从环境变量读取
-	TokenExpireDuration = time.Hour * 2
+	TokenExpireDuration = time.Hour * 24
 )
 
 // GenerateToken 生成 JWT token

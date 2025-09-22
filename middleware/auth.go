@@ -63,6 +63,8 @@ func JWTAuthMiddleware() gin.HandlerFunc {
 		utils.CacheUserInfo(tokenString, uid, email)
 		fmt.Println("缓存用户信息", tokenString, uid, email)
 
+		
+
 		// 将用户信息存储到上下文中
 		c.Set("uid", uid)
 		c.Set("email", email)

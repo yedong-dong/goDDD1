@@ -32,3 +32,4 @@ type UserCurrencyFlowDTO struct {
 	CostType string `gorm:"size:20;not null" json:"cost_type"`
 	Price    int64  `gorm:"not null" json:"price"`
 }
+

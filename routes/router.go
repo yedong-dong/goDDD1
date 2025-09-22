@@ -79,6 +79,18 @@ func SetupRouter() *gin.Engine {
 			userCurrencyFlow.GET("/get", userCurrencyFlowController.GetUserCurrencyFlow)
 		}
 
+		// 在 SetupRouter 函数中添加
+		// 创建控制器实例
+		levelController := controllers.NewLevelController()
+
+		// 在 protected 路由组中添加
+		// 用户等级相关路由
+		level := protected.Group("/level")
+		{
+			level.GET("/user", levelController.GetUserLevel)          // 获取用户等级信息
+			level.GET("/history", levelController.GetLevelHistory)    // 获取用户等级历史记录
+			level.GET("/configs", levelController.GetAllLevelConfigs) // 获取所有等级配置
+		}
 	}
 
 	return r

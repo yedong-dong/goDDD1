@@ -2,6 +2,7 @@ package services
 
 import (
 	"errors" // 添加这行
+	"fmt"
 	"goDDD1/config"
 	"goDDD1/models"
 )
@@ -17,10 +18,13 @@ type StoreService interface {
 }
 
 type storeService struct {
+	levelService LevelService
 }
 
 func NewStoreService() StoreService {
-	return &storeService{}
+	return &storeService{
+		levelService: NewLevelService(),
+	}
 }
 
 func (s *storeService) GetStoreByTag(tag models.Tag) ([]*models.StoreDTO, error) {
@@ -142,6 +146,18 @@ func (s *storeService) BuyGoods(userID uint, storeID uint, num uint) error {
 		return errors.New("钱包不足")
 	}
 
+	originalPrice := store.Price * int64(num)
+	discountPrice, err := s.levelService.CalculateDiscountPrice(user.UID, uint(originalPrice))
+	if err != nil {
+		// 如果计算折扣失败，使用原价
+		discountPrice = uint(originalPrice)
+	}
+
+	if wallet.Num < int64(discountPrice) {
+		tx.Rollback()
+		return errors.New("钱包不足")
+	}
+
 	//5、扣减余额
 	wallet.Num -= store.Price * int64(num)
 	if err := tx.Save(&wallet).Error; err != nil {
@@ -165,6 +181,22 @@ func (s *storeService) BuyGoods(userID uint, storeID uint, num uint) error {
 	}).Error; err != nil {
 		tx.Rollback()
 		return err
+	}
+
+	//7.1、 增加经验值
+	switch store.CostType {
+	case "coin":
+		//增加经验值
+		if _, err := s.levelService.AddExpeirence(user.UID, uint(store.Price*int64(num))/2, fmt.Sprintf("购买%s商品:%s, 价格为:%d", store.CostType, store.Name, store.Price*int64(num))); err != nil {
+			tx.Rollback()
+			return err
+		}
+	case "diamond":
+		//增加经验值
+		if _, err := s.levelService.AddExpeirence(user.UID, uint(store.Price*int64(num)), fmt.Sprintf("购买%s商品:%s, 价格为:%d", store.CostType, store.Name, store.Price*int64(num))); err != nil {
+			tx.Rollback()
+			return err
+		}
 	}
 
 	bag.Quantity += int64(num)
