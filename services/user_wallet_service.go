@@ -79,23 +79,13 @@ func (s *userWalletService) GetWalletByUserIDAndTypeWithTx(tx *gorm.DB, userID u
 
 // UpdateWalletBalance 更新钱包余额
 func (s *userWalletService) UpdateWalletBalance(userID uint, walletType models.WalletType, amount int64) error {
-	// 创建事务
-	tx := config.Database.Begin()
-
-	// 使用事务更新钱包余额
-	if err := s.UpdateWalletBalanceWithTx(tx, userID, walletType, amount); err != nil {
-		tx.Rollback()
-		return err
-	}
-
-	// 提交事务
-	return tx.Commit().Error
+	config.Database.Where("user_id = ? AND type = ?", userID, walletType).Update("num", gorm.Expr("num + ?", amount))
+	return nil
 }
 
 // UpdateWalletBalanceWithTx 使用事务更新钱包余额
 func (s *userWalletService) UpdateWalletBalanceWithTx(tx *gorm.DB, userID uint, walletType models.WalletType, amount int64) error {
 	// 设置超时时间（通过数据库层面的超时控制）
-	// 注意：GORM v1.9.16不支持WithContext，所以我们使用其他方式处理超时
 
 	// 使用FOR UPDATE锁定行，避免并发更新冲突
 	var wallet models.UserWallet

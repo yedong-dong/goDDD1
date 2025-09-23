@@ -165,6 +165,17 @@ func (s *storeService) BuyGoods(userID uint, storeID uint, num uint) error {
 		return err
 	}
 
+	//8、添加交易流水
+	var userCurrencyFlowService = NewUserCurrencyFlowService()
+	if err := userCurrencyFlowService.CreateUserCurrencyFlow(&models.UserCurrencyFlow{
+		UserID:   userID,
+		StoreID:  storeID,
+		CostType: string(store.CostType),
+		Price:    -store.Price * int64(num),
+	}); err != nil {
+		return err
+	}
+
 	//6、扣减库存
 	store.Stock -= int64(num)
 	if err := tx.Save(&store).Error; err != nil {
@@ -202,17 +213,6 @@ func (s *storeService) BuyGoods(userID uint, storeID uint, num uint) error {
 	bag.Quantity += int64(num)
 	if err := tx.Save(&bag).Error; err != nil {
 		tx.Rollback()
-		return err
-	}
-
-	//8、添加交易流水
-	var userCurrencyFlowService = NewUserCurrencyFlowService()
-	if err := userCurrencyFlowService.CreateUserCurrencyFlow(&models.UserCurrencyFlow{
-		UserID:   userID,
-		StoreID:  storeID,
-		CostType: string(store.CostType),
-		Price:    -store.Price * int64(num),
-	}); err != nil {
 		return err
 	}
 

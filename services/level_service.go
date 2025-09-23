@@ -56,7 +56,39 @@ func (s *levelService) AddExpeirence(userID uint, exp uint, description string) 
 	oldLevel := user.Level
 	user.Experience += exp
 
+	var allLevelConfigs []models.LevelConfig
+	if err := tx.Order("level asc").Find(&allLevelConfigs).Error; err != nil {
+		tx.Rollback()
+		return nil, err
+	}
+
+	levelConfigMap := make(map[uint]*models.LevelConfig)
+	var maxLevel uint = 0
+	for _, config := range allLevelConfigs {
+		levelConfigMap[config.Level] = &config
+		if config.Level > maxLevel {
+			maxLevel = config.Level
+		}
+	}
+
 	// 检查是否升级
+	for _, config := range allLevelConfigs {
+		if user.Level >= config.Level {
+			continue
+		}
+		if user.Experience >= config.RequiredExp {
+			user.Level = config.Level
+			if err := s.userWalletService.UpdateWalletBalance(userID, "coin", int64(levelConfigMap[config.Level].CoinReward)); err != nil {
+				tx.Rollback()
+				return nil, err
+			}
+			if err := s.userWalletService.UpdateWalletBalance(userID, "diamond", int64(levelConfigMap[config.Level].DiamondReward)); err != nil {
+				tx.Rollback()
+				return nil, err
+			}
+		}
+	}
+
 	levelConfig, err := s.GetLevelConfig(user.Level + 1)
 	if err != nil {
 		tx.Rollback()
@@ -66,6 +98,7 @@ func (s *levelService) AddExpeirence(userID uint, exp uint, description string) 
 		// 升级
 		user.Level++
 	}
+
 	// 保存用户信息
 	if err := tx.Save(&user).Error; err != nil {
 		tx.Rollback()
