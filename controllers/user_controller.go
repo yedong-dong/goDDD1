@@ -3,7 +3,7 @@ package controllers
 import (
 	"goDDD1/models"
 	"goDDD1/services"
-	"net/http"
+	"goDDD1/utils"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
@@ -25,31 +25,31 @@ func NewUserController() *UserController {
 func (c *UserController) Register(ctx *gin.Context) {
 	var user models.User
 	if err := ctx.ShouldBindJSON(&user); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "JSON绑定失败: " + err.Error()})
+		utils.ResClientError(ctx, "JSON绑定失败: "+err.Error())
 		return
 	}
 
 	// 调试日志：打印接收到的用户数据
 	ctx.Header("Content-Type", "application/json")
 	if user.Username == "" {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "用户名为空", "username": user.Username})
+		utils.ResClientError(ctx, "用户名为空")
 		return
 	}
 	if user.Email == "" {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "邮箱为空", "email": user.Email})
+		utils.ResClientError(ctx, "邮箱为空")
 		return
 	}
 	if user.Password == "" {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "密码为空", "password": "[隐藏]"})
+		utils.ResClientError(ctx, "密码为空")
 		return
 	}
 
 	if err := c.userService.CreateUser(&user); err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "创建用户失败"})
+		utils.ResServerError(ctx, err)
 		return
 	}
 
-	ctx.JSON(http.StatusCreated, gin.H{"message": "用户注册成功", "user": user})
+	utils.ResSuccess(ctx, "用户注册成功", user)
 }
 
 // GetUserByID 根据ID获取用户
@@ -57,7 +57,7 @@ func (c *UserController) GetUserByUID(ctx *gin.Context) {
 	// 优先使用uid参数，如果没有则使用id参数
 	uidStr := ctx.Query("uid")
 	if uidStr == "" {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "缺少uid参数"})
+		utils.ResClientError(ctx, "缺少uid参数")
 		return
 	}
 
@@ -65,20 +65,17 @@ func (c *UserController) GetUserByUID(ctx *gin.Context) {
 
 	uid, err := strconv.ParseUint(uidStr, 10, 32)
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "无效的用户ID"})
+		utils.ResClientError(ctx, "无效的用户ID")
 		return
 	}
 
 	user, err := c.userService.GetUserByUID(uint(uid))
 	if err != nil {
-		ctx.JSON(http.StatusNotFound, gin.H{
-			"code":    "50000",
-			"message": err.Error(),
-		})
+		utils.ResServerError(ctx, err)
 		return
 	}
 
-	ctx.JSON(http.StatusOK, gin.H{"user": user})
+	utils.ResSuccess(ctx, "获取用户成功", user)
 }
 
 // GetUserByID 根据ID获取用户
@@ -86,7 +83,7 @@ func (c *UserController) GetUserByUIDDetail(ctx *gin.Context) {
 	// 优先使用uid参数，如果没有则使用id参数
 	uidStr := ctx.Query("uid")
 	if uidStr == "" {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "缺少uid参数"})
+		utils.ResClientError(ctx, "缺少uid参数")
 		return
 	}
 
@@ -94,39 +91,27 @@ func (c *UserController) GetUserByUIDDetail(ctx *gin.Context) {
 
 	uid, err := strconv.ParseUint(uidStr, 10, 32)
 	if err != nil {
-		ctx.JSON(http.StatusNotFound, gin.H{
-			"code":    "50000",
-			"message": err.Error(),
-		})
+		utils.ResServerError(ctx, err)
 		return
 	}
 
 	user, err := c.userService.GetUserByUID(uint(uid))
 	if err != nil {
-		ctx.JSON(http.StatusNotFound, gin.H{
-			"code":    "50000",
-			"message": err.Error(),
-		})
+		utils.ResServerError(ctx, err)
 		return
 	}
 
-	ctx.JSON(http.StatusOK, gin.H{"user": user})
+	utils.ResSuccess(ctx, "获取用户详情成功", user)
 }
 
 func (c *UserController) GetAllUsers(ctx *gin.Context) {
 	users, err := c.userService.GetAllUsers()
 	if err != nil {
-		ctx.JSON(http.StatusNotFound, gin.H{"error": "用户不存在"})
+		utils.ResClientError(ctx, "用户不存在")
 		return
 	}
 
-	ctx.JSON(http.StatusOK, gin.H{
-		"code": 20000,
-		"data": gin.H{
-			"users":   users,
-			"message": "success",
-		},
-	})
+	utils.ResSuccess(ctx, "获取所有用户成功", users)
 }
 
 // UpdateUser 更新用户信息
@@ -145,29 +130,20 @@ func (c *UserController) UpdateUser(ctx *gin.Context) {
 	}
 
 	if err := ctx.ShouldBindJSON(&requestData); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{
-			"error":   "JSON数据格式错误",
-			"message": err.Error(),
-		})
+		utils.ResClientError(ctx, "JSON数据格式错误: "+err.Error())
 		return
 	}
 
 	// 2. 参数验证：检查UID是否有效
 	if requestData.UID == 0 {
-		ctx.JSON(http.StatusBadRequest, gin.H{
-			"error":   "无效的用户UID",
-			"message": "UID必须是大于0的数字",
-		})
+		utils.ResClientError(ctx, "无效的用户UID: UID必须是大于0的数字")
 		return
 	}
 
 	// 3. 先从数据库中查询出用户
 	user, err := c.userService.GetUserByUID(uint(requestData.UID))
 	if err != nil {
-		ctx.JSON(http.StatusNotFound, gin.H{
-			"error":   "用户不存在",
-			"message": "未找到指定UID的用户",
-		})
+		utils.ResClientError(ctx, "用户不存在: 未找到指定UID的用户")
 		return
 	}
 
@@ -189,19 +165,10 @@ func (c *UserController) UpdateUser(ctx *gin.Context) {
 
 	// 5. 业务逻辑：调用服务层更新用户信息到数据库
 	if err := c.userService.UpdateUser(user); err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{
-			"error":   "更新用户失败",
-			"message": "服务器内部错误，请稍后重试",
-		})
+		utils.ResServerError(ctx, err)
 		return
 	}
 
 	// 6. 成功响应：返回更新后的用户信息
-	ctx.JSON(http.StatusOK, gin.H{
-		"code": "20000",
-		"data": gin.H{
-			"message": "success",
-			"user":    user,
-		},
-	})
+	utils.ResSuccess(ctx, "更新用户成功", user)
 }

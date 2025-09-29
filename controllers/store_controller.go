@@ -3,7 +3,7 @@ package controllers
 import (
 	"goDDD1/models"
 	"goDDD1/services"
-	"net/http"
+	"goDDD1/utils"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
@@ -26,45 +26,29 @@ func NewStoreController() *StoreController {
 func (c *StoreController) CreateStore(ctx *gin.Context) {
 	var store models.Store
 	if err := ctx.ShouldBindJSON(&store); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{
-			"error":   "JSON数据格式错误",
-			"message": err.Error(),
-		})
+		utils.ResClientError(ctx, "JSON数据格式错误")
 		return
 	}
 	if store.CostType != models.CostTypeCoin && store.CostType != models.CostTypeDiamond {
-		ctx.JSON(http.StatusBadRequest, gin.H{
-			"error":   "JSON数据格式错误",
-			"message": "CostTpye类型错误",
-		})
+		utils.ResClientError(ctx, "CostTpye类型错误")
 		return
 	}
 
 	if store.StoreType != models.StoreTypeGood && store.StoreType != models.StoreTypeGift {
-		ctx.JSON(http.StatusBadRequest, gin.H{
-			"error":   "JSON数据格式错误",
-			"message": "StoreType类型错误",
-		})
+		utils.ResClientError(ctx, "StoreType类型错误")
 		return
 	}
 	if store.Tag != models.TagNormal && store.Tag != models.TagClothes && store.Tag != models.TagWeapon && store.Tag != models.TagArtifact && store.Tag != models.TagConsumable {
-		ctx.JSON(http.StatusBadRequest, gin.H{
-			"error":   "JSON数据格式错误",
-			"message": "Tag类型错误",
-		})
+		utils.ResClientError(ctx, "Tag类型错误")
 		return
 	}
 
 	if err := c.storeService.CreateStore(&store); err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{
-			"error":   "创建失败",
-			"message": err.Error(),
-		})
+		utils.ResServerError(ctx, err)
 		return
 	}
-	ctx.JSON(http.StatusOK, gin.H{
-		"message": "创建成功",
-		"store":   store,
+	utils.ResSuccess(ctx, "创建成功", gin.H{
+		"store": store,
 	})
 }
 
@@ -81,37 +65,25 @@ func (c *StoreController) UpdateStore(ctx *gin.Context) {
 
 	var requestData UpdateRequest
 	if err := ctx.ShouldBindJSON(&requestData); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{
-			"error": "json数据格式错误",
-			"msg":   err.Error(),
-		})
+		utils.ResClientError(ctx, "json数据格式错误")
 		return
 	}
 
 	// 验证 ID
 	if requestData.ID != nil && *requestData.ID <= 0 {
-		ctx.JSON(http.StatusBadRequest, gin.H{
-			"error": "无效id",
-			"msg":   "id不能小于等于0",
-		})
+		utils.ResClientError(ctx, "id不能小于等于0")
 		return
 	}
 
 	// 验证 Price
 	if requestData.Price != nil && *requestData.Price < 0 {
-		ctx.JSON(http.StatusBadRequest, gin.H{
-			"error": "无效price",
-			"msg":   "price不能小于0",
-		})
+		utils.ResClientError(ctx, "price不能小于0")
 		return
 	}
 
 	// 验证 Stock
 	if requestData.Stock != nil && *requestData.Stock < 0 {
-		ctx.JSON(http.StatusBadRequest, gin.H{
-			"error": "无效stock",
-			"msg":   "stock不能小于0",
-		})
+		utils.ResClientError(ctx, "stock不能小于0")
 		return
 	}
 
@@ -119,10 +91,7 @@ func (c *StoreController) UpdateStore(ctx *gin.Context) {
 	if requestData.CostType != nil &&
 		*requestData.CostType != models.CostTypeCoin &&
 		*requestData.CostType != models.CostTypeDiamond {
-		ctx.JSON(http.StatusBadRequest, gin.H{
-			"error": "无效cost_type",
-			"msg":   "cost_type必须是coin或diamond",
-		})
+		utils.ResClientError(ctx, "cost_type必须是coin或diamond")
 		return
 	}
 
@@ -130,10 +99,7 @@ func (c *StoreController) UpdateStore(ctx *gin.Context) {
 	if requestData.Status != nil &&
 		*requestData.Status != 0 &&
 		*requestData.Status != 1 {
-		ctx.JSON(http.StatusBadRequest, gin.H{
-			"error": "无效status",
-			"msg":   "status必须是0或1",
-		})
+		utils.ResClientError(ctx, "status必须是0或1")
 		return
 	}
 
@@ -141,10 +107,7 @@ func (c *StoreController) UpdateStore(ctx *gin.Context) {
 	storeID := strconv.Itoa(int(*requestData.ID))
 	existingStore, err := c.storeService.GetStoreByID(storeID)
 	if err != nil {
-		ctx.JSON(http.StatusNotFound, gin.H{
-			"error": "商店不存在",
-			"msg":   "指定的商店ID不存在",
-		})
+		utils.ResClientError(ctx, "指定的商店ID不存在")
 		return
 	}
 
@@ -169,127 +132,89 @@ func (c *StoreController) UpdateStore(ctx *gin.Context) {
 	// 调用服务层更新
 	updatedStore, err := c.storeService.UpdateStore(existingStore)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{
-			"error": "更新失败",
-			"msg":   err.Error(),
-		})
+		utils.ResServerError(ctx, err)
 		return
 	}
 
 	updateStoreDTO := updatedStore.ToStoreDTO()
 	// 返回成功响应
-	ctx.JSON(http.StatusOK, gin.H{
-		"message": "商店更新成功",
-		"data":    updateStoreDTO,
+	utils.ResSuccess(ctx, "商店更新成功", gin.H{
+		"data": updateStoreDTO,
 	})
 }
 
 func (c *StoreController) GetStoreByID(ctx *gin.Context) {
 	id := ctx.Query("id")
 	if id == "" {
-		ctx.JSON(http.StatusBadRequest, gin.H{
-			"error": "无效id",
-			"msg":   "id不能为空",
-		})
+		utils.ResClientError(ctx, "id不能为空")
 		return
 	}
 	store, err := c.storeService.GetStoreByID(id)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{
-			"error": "获取失败",
-			"msg":   err.Error(),
-		})
+		utils.ResServerError(ctx, err)
 		return
 	}
 
 	storeDTO := store.ToStoreDTO()
 
-	ctx.JSON(http.StatusOK, gin.H{
-		"message": "获取成功",
-		"store":   storeDTO,
+	utils.ResSuccess(ctx, "获取成功", gin.H{
+		"store": storeDTO,
 	})
 }
 
 func (c *StoreController) GetStoreByTag(ctx *gin.Context) {
 	tag := ctx.Query("tag")
 	if tag == "" {
-		ctx.JSON(http.StatusBadRequest, gin.H{
-			"error": "无效tag",
-			"msg":   "tag不能为空",
-		})
+		utils.ResClientError(ctx, "tag不能为空")
 		return
 	}
 	stores, err := c.storeService.GetStoreByTag(models.Tag(tag))
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{
-			"error": "获取失败",
-			"msg":   err.Error(),
-		})
+		utils.ResServerError(ctx, err)
 		return
 	}
-	ctx.JSON(http.StatusOK, gin.H{
-		"message": "获取成功",
-		"stores":  stores,
+	utils.ResSuccess(ctx, "获取成功", gin.H{
+		"stores": stores,
 	})
 }
 
 func (c *StoreController) GetStoreByTagPage(ctx *gin.Context) {
 	tag := ctx.Query("tag")
 	if tag == "" {
-		ctx.JSON(http.StatusBadRequest, gin.H{
-			"error": "无效tag",
-			"msg":   "tag不能为空",
-		})
+		utils.ResClientError(ctx, "tag不能为空")
 		return
 	}
 	page, err := strconv.Atoi(ctx.Query("page"))
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{
-			"error": "无效page",
-			"msg":   "page必须是整数",
-		})
+		utils.ResClientError(ctx, "page必须是整数")
 		return
 	}
 	pageSize, err := strconv.Atoi(ctx.Query("page_size"))
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{
-			"error": "无效page_size",
-			"msg":   "page_size必须是整数",
-		})
+		utils.ResClientError(ctx, "page_size必须是整数")
 		return
 	}
 	stores, total, err := c.storeService.GetStoreByTagPage(models.Tag(tag), page, pageSize)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{
-			"error": "获取失败",
-			"msg":   err.Error(),
-		})
+		utils.ResServerError(ctx, err)
 		return
 	}
-	ctx.JSON(http.StatusOK, gin.H{
-		"message": "获取成功",
-		"stores":  stores,
-		"total":   total,
+	utils.ResSuccess(ctx, "获取成功", gin.H{
+		"stores": stores,
+		"total":  total,
 	})
 }
 
 func (c *StoreController) GetAllStores(ctx *gin.Context) {
 	stores, err := c.storeService.GetAllStores()
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{
-			"error":   "获取商店列表失败",
-			"message": err.Error(),
-		})
+		utils.ResServerError(ctx, err)
 		return
 	}
 
-	ctx.JSON(http.StatusOK, gin.H{
-		"code": 20000,
-		"data": gin.H{
-			"stores": stores,
-			"total":  len(stores),
-		},
-		"message": "获取商店列表成功",
+	utils.ResSuccess(ctx, "获取商店列表成功", gin.H{
+		"stores": stores,
+		"total":  len(stores),
 	})
 }
 
@@ -303,32 +228,20 @@ func (c *StoreController) BuyGoods(ctx *gin.Context) {
 
 	var requestData BuyRequest
 	if err := ctx.ShouldBindJSON(&requestData); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{
-			"error": "json数据格式错误",
-			"msg":   err.Error(),
-		})
+		utils.ResClientError(ctx, "json数据格式错误")
 		return
 	}
 
 	if requestData.Num <= 0 {
-		ctx.JSON(http.StatusBadRequest, gin.H{
-			"error": "无效num",
-			"msg":   "num不能小于等于0",
-		})
+		utils.ResClientError(ctx, "num不能小于等于0")
 		return
 	}
 
 	err := c.storeService.BuyGoods(requestData.UserID, requestData.StoreID, requestData.Num)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{
-			"error": "购买失败",
-			"msg":   err.Error(),
-		})
+		utils.ResServerError(ctx, err)
 		return
 	}
 
-	ctx.JSON(http.StatusOK, gin.H{
-		"message": "购买成功",
-	})
-
+	utils.ResSuccess(ctx, "购买成功", nil)
 }

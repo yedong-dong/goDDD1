@@ -3,7 +3,7 @@ package controllers
 import (
 	"goDDD1/models"
 	"goDDD1/services"
-	"net/http"
+	"goDDD1/utils"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
@@ -29,37 +29,25 @@ func (c *RewardPackageController) CreateRewardPackage(ctx *gin.Context) {
 
 	var req CreateRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{
-			"error":   "JSON数据格式错误",
-			"message": err.Error(),
-		})
+		utils.ResClientError(ctx, "JSON数据格式错误")
 		return
 	}
 
 	// 验证奖励包内容
 	if len(req.Items) == 0 {
-		ctx.JSON(http.StatusBadRequest, gin.H{
-			"error":   "参数错误",
-			"message": "奖励包内容不能为空",
-		})
+		utils.ResClientError(ctx, "奖励包内容不能为空")
 		return
 	}
 
 	// 创建奖励包
 	if err := c.rewardPackageService.CreateRewardPackage(&req.Package, req.Items); err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{
-			"error":   "创建失败",
-			"message": err.Error(),
-		})
+		utils.ResServerError(ctx, err)
 		return
 	}
 
-	ctx.JSON(http.StatusOK, gin.H{
-		"message": "创建成功",
-		"data": gin.H{
-			"package_id": req.Package.ID,
-			"name":       req.Package.Name,
-		},
+	utils.ResSuccess(ctx, "创建成功", gin.H{
+		"package_id": req.Package.ID,
+		"name":       req.Package.Name,
 	})
 }
 
@@ -73,55 +61,37 @@ func (c *RewardPackageController) UpdateRewardPackage(ctx *gin.Context) {
 
 	var req UpdateRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{
-			"error":   "JSON数据格式错误",
-			"message": err.Error(),
-		})
+		utils.ResClientError(ctx, "JSON数据格式错误")
 		return
 	}
 
 	// 验证奖励包ID
 	if req.Package.ID == 0 {
-		ctx.JSON(http.StatusBadRequest, gin.H{
-			"error":   "参数错误",
-			"message": "奖励包ID不能为空",
-		})
+		utils.ResClientError(ctx, "奖励包ID不能为空")
 		return
 	}
 
 	// 验证奖励包内容
 	if len(req.Items) == 0 {
-		ctx.JSON(http.StatusBadRequest, gin.H{
-			"error":   "参数错误",
-			"message": "奖励包内容不能为空",
-		})
+		utils.ResClientError(ctx, "奖励包内容不能为空")
 		return
 	}
 
 	// 更新奖励包基本信息
 	if err := c.rewardPackageService.UpdateRewardPackage(&req.Package); err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{
-			"error":   "更新失败",
-			"message": err.Error(),
-		})
+		utils.ResServerError(ctx, err)
 		return
 	}
 
 	// 更新奖励包内容
 	if err := c.rewardPackageService.UpdateRewardPackageItems(req.Package.ID, req.Items); err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{
-			"error":   "更新奖励包内容失败",
-			"message": err.Error(),
-		})
+		utils.ResServerError(ctx, err)
 		return
 	}
 
-	ctx.JSON(http.StatusOK, gin.H{
-		"message": "更新成功",
-		"data": gin.H{
-			"package_id": req.Package.ID,
-			"name":       req.Package.Name,
-		},
+	utils.ResSuccess(ctx, "更新成功", gin.H{
+		"package_id": req.Package.ID,
+		"name":       req.Package.Name,
 	})
 }
 
@@ -130,39 +100,27 @@ func (c *RewardPackageController) GetRewardPackage(ctx *gin.Context) {
 	idStr := ctx.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 32)
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{
-			"error":   "参数错误",
-			"message": "无效的奖励包ID",
-		})
+		utils.ResClientError(ctx, "无效的奖励包ID")
 		return
 	}
 
 	// 获取奖励包基本信息
 	pkg, err := c.rewardPackageService.GetRewardPackageByID(uint(id))
 	if err != nil {
-		ctx.JSON(http.StatusNotFound, gin.H{
-			"error":   "查询失败",
-			"message": err.Error(),
-		})
+		utils.ResClientError(ctx, "奖励包不存在")
 		return
 	}
 
 	// 获取奖励包内容
 	items, err := c.rewardPackageService.GetRewardPackageItems(uint(id))
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{
-			"error":   "查询奖励包内容失败",
-			"message": err.Error(),
-		})
+		utils.ResServerError(ctx, err)
 		return
 	}
 
-	ctx.JSON(http.StatusOK, gin.H{
-		"message": "查询成功",
-		"data": gin.H{
-			"package": pkg,
-			"items":   items,
-		},
+	utils.ResSuccess(ctx, "查询成功", gin.H{
+		"package": pkg,
+		"items":   items,
 	})
 }
 
@@ -183,21 +141,15 @@ func (c *RewardPackageController) ListRewardPackages(ctx *gin.Context) {
 
 	packages, total, err := c.rewardPackageService.ListRewardPackages(page, pageSize)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{
-			"error":   "查询失败",
-			"message": err.Error(),
-		})
+		utils.ResServerError(ctx, err)
 		return
 	}
 
-	ctx.JSON(http.StatusOK, gin.H{
-		"message": "查询成功",
-		"data": gin.H{
-			"total":    total,
-			"page":     page,
-			"pageSize": pageSize,
-			"packages": packages,
-		},
+	utils.ResSuccess(ctx, "查询成功", gin.H{
+		"total":    total,
+		"page":     page,
+		"pageSize": pageSize,
+		"packages": packages,
 	})
 }
 
@@ -206,24 +158,16 @@ func (c *RewardPackageController) DeleteRewardPackage(ctx *gin.Context) {
 	idStr := ctx.Query("id")
 	id, err := strconv.ParseUint(idStr, 10, 32)
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{
-			"error":   "参数错误",
-			"message": "无效的奖励包ID",
-		})
+		utils.ResClientError(ctx, "无效的奖励包ID")
 		return
 	}
 
 	if err := c.rewardPackageService.DeleteRewardPackage(uint(id)); err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{
-			"error":   "删除失败",
-			"message": err.Error(),
-		})
+		utils.ResServerError(ctx, err)
 		return
 	}
 
-	ctx.JSON(http.StatusOK, gin.H{
-		"message": "删除成功",
-	})
+	utils.ResSuccess(ctx, "删除成功", nil)
 }
 
 // GetUserRewardRecords 获取用户奖励记录
@@ -231,10 +175,7 @@ func (c *RewardPackageController) GetUserRewardRecords(ctx *gin.Context) {
 	userIDStr := ctx.Param("user_id")
 	userID, err := strconv.ParseUint(userIDStr, 10, 32)
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{
-			"error":   "参数错误",
-			"message": "无效的用户ID",
-		})
+		utils.ResClientError(ctx, "无效的用户ID")
 		return
 	}
 
@@ -253,21 +194,15 @@ func (c *RewardPackageController) GetUserRewardRecords(ctx *gin.Context) {
 
 	records, total, err := c.rewardPackageService.GetRewardRecordsByUserID(uint(userID), page, pageSize)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{
-			"error":   "查询失败",
-			"message": err.Error(),
-		})
+		utils.ResServerError(ctx, err)
 		return
 	}
 
-	ctx.JSON(http.StatusOK, gin.H{
-		"message": "查询成功",
-		"data": gin.H{
-			"total":    total,
-			"page":     page,
-			"pageSize": pageSize,
-			"records":  records,
-		},
+	utils.ResSuccess(ctx, "查询成功", gin.H{
+		"total":    total,
+		"page":     page,
+		"pageSize": pageSize,
+		"records":  records,
 	})
 }
 
@@ -281,28 +216,19 @@ func (c *RewardPackageController) GrantReward(ctx *gin.Context) {
 
 	var req GrantRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{
-			"error":   "JSON数据格式错误",
-			"message": err.Error(),
-		})
+		utils.ResClientError(ctx, "JSON数据格式错误")
 		return
 	}
 
 	record, err := c.rewardPackageService.GrantReward(nil, req.UserID, req.PackageID, req.Source)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{
-			"error":   "发放奖励失败",
-			"message": err.Error(),
-		})
+		utils.ResServerError(ctx, err)
 		return
 	}
 
-	ctx.JSON(http.StatusOK, gin.H{
-		"message": "发放奖励成功",
-		"data": gin.H{
-			"record_id":  record.ID,
-			"user_id":    record.UserID,
-			"package_id": record.PackageID,
-		},
+	utils.ResSuccess(ctx, "发放奖励成功", gin.H{
+		"record_id":  record.ID,
+		"user_id":    record.UserID,
+		"package_id": record.PackageID,
 	})
 }

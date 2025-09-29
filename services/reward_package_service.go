@@ -17,8 +17,8 @@ type RewardPackageService interface {
 	UpdateRewardPackageItems(packageID uint, items []*models.RewardPackageItem) error
 	GetRewardPackageByID(id uint) (*models.RewardPackage, error)
 	GetRewardPackageItems(packageID uint) ([]*models.RewardPackageItem, error)
-	ListRewardPackages(page, pageSize int) ([]*models.RewardPackage, int64, error)
 	DeleteRewardPackage(id uint) error
+	ListRewardPackages(page, pageSize int) ([]*models.RewardPackage, int64, error)
 
 	// 奖励记录管理
 	CreateRewardRecord(record *models.RewardRecord) error
@@ -120,6 +120,30 @@ func (s *rewardPackageService) GetRewardPackageItems(packageID uint) ([]*models.
 	return items, nil
 }
 
+// DeleteRewardPackage 删除奖励包
+func (s *rewardPackageService) DeleteRewardPackage(id uint) error {
+	tx := config.Database.Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+
+	// 删除奖励包内容
+	if err := tx.Where("package_id = ?", id).Delete(models.RewardPackageItem{}).Error; err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	// 删除奖励包
+	if err := tx.Delete(&models.RewardPackage{}, id).Error; err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	return tx.Commit().Error
+}
+
 // ListRewardPackages 分页获取奖励包列表
 func (s *rewardPackageService) ListRewardPackages(page, pageSize int) ([]*models.RewardPackage, int64, error) {
 	if page <= 0 {
@@ -145,30 +169,6 @@ func (s *rewardPackageService) ListRewardPackages(page, pageSize int) ([]*models
 	}
 
 	return packages, total, nil
-}
-
-// DeleteRewardPackage 删除奖励包
-func (s *rewardPackageService) DeleteRewardPackage(id uint) error {
-	tx := config.Database.Begin()
-	defer func() {
-		if r := recover(); r != nil {
-			tx.Rollback()
-		}
-	}()
-
-	// 删除奖励包内容
-	if err := tx.Where("package_id = ?", id).Delete(models.RewardPackageItem{}).Error; err != nil {
-		tx.Rollback()
-		return err
-	}
-
-	// 删除奖励包
-	if err := tx.Delete(&models.RewardPackage{}, id).Error; err != nil {
-		tx.Rollback()
-		return err
-	}
-
-	return tx.Commit().Error
 }
 
 // CreateRewardRecord 创建奖励记录
@@ -220,7 +220,6 @@ func (s *rewardPackageService) GrantReward(tx *gorm.DB, userID uint, packageID u
 		localTx = config.Database.Begin()
 		tx = localTx
 	}
-
 	defer func() {
 		if r := recover(); r != nil && localTx != nil {
 			localTx.Rollback()
@@ -235,7 +234,6 @@ func (s *rewardPackageService) GrantReward(tx *gorm.DB, userID uint, packageID u
 		}
 		return nil, err
 	}
-
 	// 查询奖励包内容
 	var items []*models.RewardPackageItem
 	if err := tx.Where("package_id = ?", packageID).Find(&items).Error; err != nil {
