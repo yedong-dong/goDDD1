@@ -210,46 +210,6 @@ func (c *StoreController) GetStoreByID(ctx *gin.Context) {
 	})
 }
 
-func (c *StoreController) BuyGoods(ctx *gin.Context) {
-	// 定义购买请求结构体
-	type BuyRequest struct {
-		UserID  uint `json:"user_id" binding:"required"`
-		StoreID uint `json:"store_id" binding:"required"`
-		Num     uint `json:"num" binding:"required"`
-	}
-
-	var requestData BuyRequest
-	if err := ctx.ShouldBindJSON(&requestData); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{
-			"error": "json数据格式错误",
-			"msg":   err.Error(),
-		})
-		return
-	}
-
-	if requestData.Num <= 0 {
-		ctx.JSON(http.StatusBadRequest, gin.H{
-			"error": "无效num",
-			"msg":   "num不能小于等于0",
-		})
-		return
-	}
-
-	err := c.storeService.BuyGoods(requestData.UserID, requestData.StoreID, requestData.Num)
-	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{
-			"error": "购买失败",
-			"msg":   err.Error(),
-		})
-		return
-	}
-
-	ctx.JSON(http.StatusOK, gin.H{
-		"message": "购买成功",
-	})
-
-}
-
 func (c *StoreController) GetStoreByTag(ctx *gin.Context) {
 	tag := ctx.Query("tag")
 	if tag == "" {
@@ -331,4 +291,44 @@ func (c *StoreController) GetAllStores(ctx *gin.Context) {
 		},
 		"message": "获取商店列表成功",
 	})
+}
+
+func (c *StoreController) BuyGoods(ctx *gin.Context) {
+	// 定义购买请求结构体
+	type BuyRequest struct {
+		UserID  uint `json:"user_id" binding:"required"`
+		StoreID uint `json:"store_id" binding:"required"`
+		Num     uint `json:"num" binding:"required"`
+	}
+
+	var requestData BuyRequest
+	if err := ctx.ShouldBindJSON(&requestData); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"error": "json数据格式错误",
+			"msg":   err.Error(),
+		})
+		return
+	}
+
+	if requestData.Num <= 0 {
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"error": "无效num",
+			"msg":   "num不能小于等于0",
+		})
+		return
+	}
+
+	err := c.storeService.BuyGoods(requestData.UserID, requestData.StoreID, requestData.Num)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{
+			"error": "购买失败",
+			"msg":   err.Error(),
+		})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{
+		"message": "购买成功",
+	})
+
 }

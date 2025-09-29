@@ -71,7 +71,42 @@ func (c *UserController) GetUserByUID(ctx *gin.Context) {
 
 	user, err := c.userService.GetUserByUID(uint(uid))
 	if err != nil {
-		ctx.JSON(http.StatusNotFound, gin.H{"error": "用户不存在"})
+		ctx.JSON(http.StatusNotFound, gin.H{
+			"code":    "50000",
+			"message": err.Error(),
+		})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{"user": user})
+}
+
+// GetUserByID 根据ID获取用户
+func (c *UserController) GetUserByUIDDetail(ctx *gin.Context) {
+	// 优先使用uid参数，如果没有则使用id参数
+	uidStr := ctx.Query("uid")
+	if uidStr == "" {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "缺少uid参数"})
+		return
+	}
+
+	var err error
+
+	uid, err := strconv.ParseUint(uidStr, 10, 32)
+	if err != nil {
+		ctx.JSON(http.StatusNotFound, gin.H{
+			"code":    "50000",
+			"message": err.Error(),
+		})
+		return
+	}
+
+	user, err := c.userService.GetUserByUID(uint(uid))
+	if err != nil {
+		ctx.JSON(http.StatusNotFound, gin.H{
+			"code":    "50000",
+			"message": err.Error(),
+		})
 		return
 	}
 

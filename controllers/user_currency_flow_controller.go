@@ -34,3 +34,18 @@ func (c *UserCurrencyFlowController) GetUserCurrencyFlow(ctx *gin.Context) {
 
 	ctx.JSON(http.StatusOK, gin.H{"user_currency_flow": userCurrencyFlow})
 }
+
+func (c *UserCurrencyFlowController) GetAllUserCurrencyFlow(ctx *gin.Context) {
+	userCurrencyFlow, err := c.userCurrencyFlowService.GetAllUserCurrencyFlow()
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "获取所有用户货币流失败"})
+		return
+	}
+	ctx.JSON(http.StatusOK, gin.H{
+		"code": "20000",
+		"data": gin.H{
+			"user_currency_flow": userCurrencyFlow,
+			"message":            "获取所有用户货币流成功",
+		},
+	})
+}

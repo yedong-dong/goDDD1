@@ -6,6 +6,11 @@ import (
 	"github.com/jinzhu/gorm"
 )
 
+// redis缓存key
+const (
+	CacheKeyUserBackpack = "user_backpack:%d" // 用户背包缓存键，%d 为用户ID
+)
+
 // User 用户模型
 type User struct {
 	ID         uint       `gorm:"primary_key" json:"id"`
@@ -13,9 +18,9 @@ type User struct {
 	Username   string     `gorm:"size:50;not null;unique" json:"username"`
 	Email      string     `gorm:"size:100;not null;unique" json:"email"`
 	Password   string     `gorm:"size:100;not null" json:"password"`
-	Level      uint       `gorm:"default:1" json:"level"`                // 用户等级，默认为1级
-	Experience uint       `gorm:"default:0" json:"experience"`           // 用户经验值
-	TotalSpent uint       `gorm:"default:0" json:"total_spent"`          // 用户总消费金额
+	Level      uint       `gorm:"default:1" json:"level"`       // 用户等级，默认为1级
+	Experience uint       `gorm:"default:0" json:"experience"`  // 用户经验值
+	TotalSpent uint       `gorm:"default:0" json:"total_spent"` // 用户总消费金额
 	CreatedAt  time.Time  `json:"created_at"`
 	UpdatedAt  time.Time  `json:"updated_at"`
 	DeletedAt  *time.Time `sql:"index" json:"-"`
@@ -41,12 +46,12 @@ func (u *User) BeforeCreate(scope *gorm.Scope) error {
 			u.UID = maxUID + 1
 		}
 	}
-	
+
 	// 设置默认等级为1
 	if u.Level == 0 {
 		u.Level = 1
 	}
-	
+
 	// 这里可以添加密码加密等逻辑
 	return nil
 }

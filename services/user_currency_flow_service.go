@@ -8,6 +8,7 @@ import (
 type UserCurrencyFlowServiceInterface interface {
 	CreateUserCurrencyFlow(*models.UserCurrencyFlow) error
 	GetUserCurrencyFlow(string) (map[string]interface{}, error)
+	GetAllUserCurrencyFlow() ([]models.UserCurrencyFlow, error)
 }
 
 type UserCurrencyFlowService struct {
@@ -50,4 +51,13 @@ func (s *UserCurrencyFlowService) GetUserCurrencyFlow(userID string) (map[string
 
 	result["flows"] = flows
 	return result, nil
+}
+
+func (s *UserCurrencyFlowService) GetAllUserCurrencyFlow() ([]models.UserCurrencyFlow, error) {
+	var userCurrencyFlows []models.UserCurrencyFlow
+	err := config.Database.Find(&userCurrencyFlows).Error
+	if err != nil {
+		return nil, err
+	}
+	return userCurrencyFlows, nil
 }

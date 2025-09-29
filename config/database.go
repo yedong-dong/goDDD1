@@ -58,7 +58,7 @@ func InitDB() *gorm.DB {
 	db.LogMode(true)
 
 	// 自动迁移数据库表结构
-	db.AutoMigrate(&models.User{}, &models.UserWallet{})
+	db.AutoMigrate(&models.User{}, &models.UserWallet{}, &models.RewardFlow{})
 
 	// 保存全局数据库连接实例
 	Database = db

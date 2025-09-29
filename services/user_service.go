@@ -5,12 +5,15 @@ import (
 	"goDDD1/config"
 	"goDDD1/models"
 	"log"
+
+	"github.com/jinzhu/gorm"
 )
 
 // UserService 用户服务接口
 type UserService interface {
 	CreateUser(user *models.User) error
 	GetUserByUID(id uint) (*models.User, error)
+	GetUserByUIDDetail(uid uint) (*models.User, error)
 	GetUserByUsername(username string) (*models.User, error)
 	UpdateUser(user *models.User) error
 	DeleteUser(id uint) error
@@ -76,8 +79,22 @@ func (s *userService) GetUserByUID(uid uint) (*models.User, error) {
 	var user models.User
 	result := config.Database.Where("uid = ?", uid).First(&user)
 	if result.Error != nil {
+		if result.Error == gorm.ErrRecordNotFound {
+			return nil, errors.New("用户不存在")
+		}
 		return nil, result.Error
 	}
+	return &user, nil
+}
+
+// GetUserByUIDDetail根据ID获取用户
+func (s *userService) GetUserByUIDDetail(uid uint) (*models.User, error) {
+	var user models.User
+	result := config.Database.Where("uid = ?", uid).First(&user)
+	if result.Error != nil {
+		return nil, result.Error
+	}
+
 	return &user, nil
 }
 

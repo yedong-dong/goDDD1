@@ -33,6 +33,9 @@ func main() {
 		&models.UserCurrencyFlow{},
 		&models.LevelConfig{},
 		&models.LevelHistory{},
+		&models.RewardPackage{},      // 添加奖励包表
+		&models.RewardPackageItem{},  // 添加奖励包物品表
+		&models.RewardRecord{},       // 添加奖励记录表
 	)
 
 	// 设置服务器端口

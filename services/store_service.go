@@ -1,10 +1,15 @@
 package services
 
 import (
+	"database/sql"
 	"errors" // 添加这行
 	"fmt"
 	"goDDD1/config"
 	"goDDD1/models"
+	"goDDD1/utils"
+	"log"
+
+	"github.com/jinzhu/gorm"
 )
 
 type StoreService interface {
@@ -109,41 +114,38 @@ func (s *storeService) BuyGoods(userID uint, storeID uint, num uint) error {
 	//6、扣减库存
 	//7、增加用户背包
 	//8、提交事务
-
 	tx := config.Database.Begin()
 	defer func() {
+		// 使用recover确保在panic时事务被回滚
 		if r := recover(); r != nil {
-			tx.Rollback()
+			// 使用SafeRollback避免重复回滚错误
+			SafeRollback(tx)
 		}
 	}()
 
 	//2、检查是否有该用户
 	var user models.User
 	if err := tx.Where("uid = ?", userID).First(&user).Error; err != nil {
-		tx.Rollback()
+		SafeRollback(tx)
 		return err
 	}
 
 	//3、检查库存是否充足
 	var store models.Store
 	if err := tx.Where("id = ? and status = 1", storeID).First(&store).Error; err != nil {
-		tx.Rollback()
+		SafeRollback(tx)
 		return err
 	}
 	if store.Stock < int64(num) {
-		tx.Rollback()
+		SafeRollback(tx)
 		return errors.New("库存不足")
 	}
 
 	//4、检查wallet是否充足
 	var wallet models.UserWallet
 	if err := tx.Where("user_id = ? and type = ?", userID, store.CostType).First(&wallet).Error; err != nil {
-		tx.Rollback()
+		SafeRollback(tx)
 		return err
-	}
-	if wallet.Num < store.Price*int64(num) {
-		tx.Rollback()
-		return errors.New("钱包不足")
 	}
 
 	originalPrice := store.Price * int64(num)
@@ -154,32 +156,33 @@ func (s *storeService) BuyGoods(userID uint, storeID uint, num uint) error {
 	}
 
 	if wallet.Num < int64(discountPrice) {
-		tx.Rollback()
+		SafeRollback(tx)
 		return errors.New("钱包不足")
 	}
 
 	//5、扣减余额
 	wallet.Num -= store.Price * int64(num)
 	if err := tx.Save(&wallet).Error; err != nil {
-		tx.Rollback()
+		SafeRollback(tx)
 		return err
 	}
 
-	//8、添加交易流水
-	var userCurrencyFlowService = NewUserCurrencyFlowService()
-	if err := userCurrencyFlowService.CreateUserCurrencyFlow(&models.UserCurrencyFlow{
+	//8、添加交易流水 - 修改为使用事务
+	var userCurrencyFlow = models.UserCurrencyFlow{
 		UserID:   userID,
 		StoreID:  storeID,
 		CostType: string(store.CostType),
 		Price:    -store.Price * int64(num),
-	}); err != nil {
+	}
+	if err := tx.Create(&userCurrencyFlow).Error; err != nil {
+		SafeRollback(tx)
 		return err
 	}
 
 	//6、扣减库存
 	store.Stock -= int64(num)
 	if err := tx.Save(&store).Error; err != nil {
-		tx.Rollback()
+		SafeRollback(tx)
 		return err
 	}
 
@@ -190,39 +193,60 @@ func (s *storeService) BuyGoods(userID uint, storeID uint, num uint) error {
 		StoreID:  storeID,
 		Quantity: 0,
 	}).Error; err != nil {
-		tx.Rollback()
+		SafeRollback(tx)
 		return err
 	}
 
+	// 删除缓存记录
+	cacheKey := fmt.Sprintf(models.CacheKeyUserBackpack, userID)
+	err = utils.DelHashField(cacheKey, "data")
+	if err == nil {
+		log.Printf("successful delete cacheKey: %s backpack", cacheKey)
+	}
+
+	// 修改BuyGoods方法中的经验值增加部分
 	//7.1、 增加经验值
 	switch store.CostType {
 	case "coin":
-		//增加经验值
-		if _, err := s.levelService.AddExpeirence(user.UID, uint(store.Price*int64(num))/2, fmt.Sprintf("购买%s商品:%s, 价格为:%d", store.CostType, store.Name, store.Price*int64(num))); err != nil {
-			tx.Rollback()
+		//增加经验值 - 使用levelService处理
+		expToAdd := uint(store.Price*int64(num)) / 2
+		description := fmt.Sprintf("购买%s商品:%s, 价格为:%d", store.CostType, store.Name, store.Price*int64(num))
+
+		// 使用levelService处理经验值增加和可能的升级
+		if _, err := s.levelService.AddExpeirence(tx, userID, expToAdd, description); err != nil {
+			SafeRollback(tx)
 			return err
 		}
+
 	case "diamond":
-		//增加经验值
-		if _, err := s.levelService.AddExpeirence(user.UID, uint(store.Price*int64(num)), fmt.Sprintf("购买%s商品:%s, 价格为:%d", store.CostType, store.Name, store.Price*int64(num))); err != nil {
-			tx.Rollback()
+		//增加经验值 - 使用levelService处理
+		expToAdd := uint(store.Price * int64(num))
+		description := fmt.Sprintf("购买%s商品:%s, 价格为:%d", store.CostType, store.Name, store.Price*int64(num))
+
+		// 使用levelService处理经验值增加和可能的升级
+		if _, err := s.levelService.AddExpeirence(tx, userID, expToAdd, description); err != nil {
+			SafeRollback(tx)
 			return err
 		}
 	}
 
 	bag.Quantity += int64(num)
 	if err := tx.Save(&bag).Error; err != nil {
-		tx.Rollback()
+		SafeRollback(tx)
 		return err
 	}
 
 	//9、提交事务
-	if err := tx.Commit().Error; err != nil {
-		tx.Rollback()
-		return err
-	}
-	return nil
+	return tx.Commit().Error
+}
 
+// SafeRollback 安全回滚事务，忽略"已回滚"错误
+func SafeRollback(tx *gorm.DB) {
+	err := tx.Rollback().Error
+	if err != nil && err != sql.ErrTxDone {
+		// 可以记录日志，但不要返回错误
+		fmt.Println("事务回滚失败:", err)
+	}
 }
 
 func (s *storeService) GetStoreByTagPage(tag models.Tag, page, pageSize int) ([]*models.StoreDTO, int64, error) {

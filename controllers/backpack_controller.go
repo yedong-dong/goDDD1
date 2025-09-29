@@ -38,8 +38,9 @@ func (c *BackpackController) GetBackpack(ctx *gin.Context) {
 		switch err.Error() {
 		case "用户不存在":
 			ctx.JSON(http.StatusNotFound, gin.H{
+				"code":    "50000",
 				"error":   "用户不存在",
-				"message": "指定的用户ID不存在",
+				"message": "用户不存在",
 			})
 		default:
 			ctx.JSON(http.StatusInternalServerError, gin.H{
@@ -51,8 +52,9 @@ func (c *BackpackController) GetBackpack(ctx *gin.Context) {
 	}
 
 	ctx.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"message": "获取背包成功",
-		"data":    backpackData,
+		"code": "20000",
+		"data": gin.H{
+			"backpack": backpackData,
+		},
 	})
 }

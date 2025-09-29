@@ -1,15 +1,18 @@
 package services
 
 import (
+	"fmt"
 	"goDDD1/config"
 	"goDDD1/models"
+
+	"github.com/jinzhu/gorm"
 )
 
 type LevelService interface {
 	// 获取用户当前等级信息
 	GetUserLevel(userID uint) (*models.User, error)
 	// 增加用户经验值，检查是否升级
-	AddExpeirence(userID uint, exp uint, description string) (*models.LevelHistory, error)
+	AddExpeirence(tx *gorm.DB, userID uint, exp uint, description string) (*models.LevelHistory, error)
 	// 获取用户等级历史记录
 	GetLevelHistory(userID uint) ([]*models.LevelHistory, error)
 	// 获取等级配置
@@ -39,17 +42,10 @@ func (s *levelService) GetUserLevel(userID uint) (*models.User, error) {
 	return &user, nil
 }
 
-func (s *levelService) AddExpeirence(userID uint, exp uint, description string) (*models.LevelHistory, error) {
-	tx := config.Database.Begin()
-	defer func() {
-		if r := recover(); r != nil {
-			tx.Rollback()
-		}
-	}()
-
+// 修改AddExpeirence方法，不在内部提交事务
+func (s *levelService) AddExpeirence(tx *gorm.DB, userID uint, exp uint, description string) (*models.LevelHistory, error) {
 	var user models.User
 	if err := tx.Where("uid=?", userID).First(&user).Error; err != nil {
-		tx.Rollback()
 		return nil, err
 	}
 
@@ -58,7 +54,6 @@ func (s *levelService) AddExpeirence(userID uint, exp uint, description string) 
 
 	var allLevelConfigs []models.LevelConfig
 	if err := tx.Order("level asc").Find(&allLevelConfigs).Error; err != nil {
-		tx.Rollback()
 		return nil, err
 	}
 
@@ -71,61 +66,69 @@ func (s *levelService) AddExpeirence(userID uint, exp uint, description string) 
 		}
 	}
 
-	// 检查是否升级
-	for _, config := range allLevelConfigs {
-		if user.Level >= config.Level {
+	// 记录总奖励
+	var totalCoinReward uint = 0
+	var totalDiamondReward uint = 0
+	var newLevel = user.Level
+
+	// 检查是否升级，处理可能的多级跳升
+	for level := user.Level + 1; level <= maxLevel; level++ {
+		config, exists := levelConfigMap[level]
+		if !exists {
 			continue
 		}
+
+		// 如果经验值达到要求，则升级并累加奖励
 		if user.Experience >= config.RequiredExp {
-			user.Level = config.Level
-			if err := s.userWalletService.UpdateWalletBalance(userID, "coin", int64(levelConfigMap[config.Level].CoinReward)); err != nil {
-				tx.Rollback()
-				return nil, err
-			}
-			if err := s.userWalletService.UpdateWalletBalance(userID, "diamond", int64(levelConfigMap[config.Level].DiamondReward)); err != nil {
-				tx.Rollback()
-				return nil, err
-			}
+			newLevel = level
+			totalCoinReward += config.CoinReward
+			totalDiamondReward += config.DiamondReward
+		} else {
+			// 经验不足以升到下一级，终止检查
+			break
 		}
 	}
 
-	levelConfig, err := s.GetLevelConfig(user.Level + 1)
-	if err != nil {
-		tx.Rollback()
-		return nil, err
-	}
-	if user.Experience >= levelConfig.RequiredExp {
-		// 升级
-		user.Level++
+	// 如果有升级，更新用户等级并发放奖励
+	if newLevel > user.Level {
+		user.Level = newLevel
+
+		// 发放金币奖励
+		if totalCoinReward > 0 {
+			if err := s.userWalletService.UpdateWalletBalanceWithTx(tx, userID, "coin", int64(totalCoinReward), fmt.Sprintf("升级奖励%s", user.Level)); err != nil {
+				return nil, err
+			}
+		}
+
+		// 发放钻石奖励
+		if totalDiamondReward > 0 {
+			if err := s.userWalletService.UpdateWalletBalanceWithTx(tx, userID, "diamond", int64(totalDiamondReward), fmt.Sprintf("升级奖励%s", user.Level)); err != nil {
+				return nil, err
+			}
+		}
 	}
 
 	// 保存用户信息
 	if err := tx.Save(&user).Error; err != nil {
-		tx.Rollback()
 		return nil, err
 	}
 
-	// 记录等级变更历史
+	// 无论是否升级，都记录经验值变化历史
 	history := &models.LevelHistory{
 		UserID:          userID,
 		OldLevel:        oldLevel,
 		NewLevel:        user.Level,
 		ExpGained:       exp,
 		Experience:      user.Experience,
-		CoinRewarded:    levelConfig.CoinReward,
-		DiamondRewarded: levelConfig.DiamondReward,
+		CoinRewarded:    totalCoinReward,
+		DiamondRewarded: totalDiamondReward,
 		Description:     description,
 	}
 	if err := tx.Create(history).Error; err != nil {
-		tx.Rollback()
 		return nil, err
 	}
 
-	if err := tx.Commit().Error; err != nil {
-		tx.Rollback()
-		return nil, err
-	}
-
+	// 移除事务提交，由调用方负责提交
 	return history, nil
 }
 
@@ -173,6 +176,5 @@ func (s *levelService) CalculateDiscountPrice(userID uint, originalPrice uint) (
 
 	// 计算折扣价格
 	discountPrice := originalPrice * levelConfig.DiscountPercent / 100
-
 	return discountPrice, nil
 }
